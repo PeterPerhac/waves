@@ -8,22 +8,29 @@ import javax.swing.Timer
 import scala.swing._
 import scala.swing.event.MouseMoved
 
-case class Point(x: Int, y: Int) {
+case class Pixel(x: Int, y: Int) {
   def withinBounds(maxX: Int, maxY: Int): Boolean = x >= 0 && x < maxX && y >= 0 && y < maxY
+  def translate(dX: Int, dY: Int): Pixel = Pixel(this.x + dX, this.y + dY)
 }
 
 object Waves extends SimpleSwingApplication {
 
-  val A: Int = 1024
+  val W: Int = 1024
+  val H: Int = 768
 
   class DataPanel(frame: MainFrame) extends Panel {
 
-    val canvas = new BufferedImage(A, A, BufferedImage.TYPE_INT_RGB)
-    val canvasRectangle = new Rectangle2D.Float(0f, 0f, A.toFloat, A.toFloat)
+    val canvas = new BufferedImage(W, H, BufferedImage.TYPE_INT_RGB)
+    val canvasRectangle = new Rectangle2D.Float(0f, 0f, W.toFloat, H.toFloat)
 
-    var mousePosition: java.awt.Point = new java.awt.Point(A / 2, A / 2)
+    var mousePosition: Point = new Point(W / 2, H / 2)
     var phase: Double = 0.0d
     var doClear: Boolean = true
+    var spacing: Int = 30
+    var magnitude: Int = 90
+    var maxPropagation: Int = 1200
+
+    var theMesh: Array[Pixel] = _
 
     def clearCanvas(): Unit = {
       val g = canvas.createGraphics()
@@ -34,6 +41,8 @@ object Waves extends SimpleSwingApplication {
     }
 
     def doRefresh(): Unit = {
+      phase = phase + 0.02
+      if (phase > 1.0) phase = phase - 1.0
       if (doClear) {
         clearCanvas()
       }
@@ -49,14 +58,36 @@ object Waves extends SimpleSwingApplication {
       case MouseMoved(_, point, _) => mousePosition = point
     }
 
+    val makeStar: Pixel => List[Pixel] = pixel =>
+      List(
+        pixel, //keep original centre-point
+        pixel.translate(1, 1), // diagonal neighbour
+        pixel.translate(1, -1), // another
+        pixel.translate(-1, 1), // another
+        pixel.translate(-1, -1) // another
+    )
+
+    def translatePixel(mx: Int, my: Int, a: Double, m: Int)(p: Pixel): Pixel = {
+      val dx = Math.abs(p.x - mx)
+      val dy = Math.abs(p.y - my)
+      val dist = Math.min(Math.sqrt(dx * dx + dy * dy), maxPropagation)
+
+      val strength: Double = (maxPropagation - dist) / maxPropagation.toDouble
+
+      val r: Double = m * strength
+      val adjustedPhase = 1.0 - (a + strength)
+      val rad = adjustedPhase * 2 * Math.PI
+
+      p.translate(dX = (r * Math.sin(rad)).toInt, dY = (r * Math.cos(rad)).toInt)
+    }
 
     def plotPoints(): Unit =
-      Seq.tabulate(100)(i => Point( // TODO somehow calculate the whole show
-        x = mousePosition.x + i,
-        y = mousePosition.y + i
-      ))
-        .foreach(pixel => if (pixel.withinBounds(A, A)) {
-          canvas.setRGB(pixel.x, pixel.y, 0xFF0000)
+      theMesh
+        .map(translatePixel(mousePosition.x, mousePosition.y, phase, magnitude))
+        .flatMap(makeStar)
+        .foreach(pixel =>
+          if (pixel.withinBounds(W, H)) {
+            canvas.setRGB(pixel.x, pixel.y, 0xFFFF00)
         })
 
     override def paintComponent(g: Graphics2D): Unit =
@@ -66,9 +97,18 @@ object Waves extends SimpleSwingApplication {
 
   }
 
+  private def createStarField(d: Int): Array[Array[Pixel]] = {
+    val hCount = (W / d) + 1
+    val vCount = (H / d) + 1
+    Array.tabulate(vCount) { yIdx =>
+      Array.tabulate(hCount)(xIdx => Pixel(xIdx * d, yIdx * d))
+    }
+  }
+
   override def top: MainFrame = new MainFrame {
     contents = new DataPanel(this) {
-      preferredSize = new Dimension(A, A)
+      preferredSize = new Dimension(W, H)
+      theMesh = createStarField(spacing).flatten
       doRefresh()
     }
   }
