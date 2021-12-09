@@ -8,7 +8,7 @@ import java.awt.image.BufferedImage
 import javax.swing.Timer
 import scala.collection.{immutable, mutable}
 import scala.swing._
-import scala.swing.event.{Key, KeyPressed, KeyReleased, MouseMoved}
+import scala.swing.event.{Key, KeyPressed, KeyReleased, MouseMoved, UIElementResized}
 
 case class Pixel(x: Int, y: Int) {
   def withinBounds(maxX: Int, maxY: Int): Boolean = x >= 0 && x < maxX && y >= 0 && y < maxY
@@ -17,10 +17,10 @@ case class Pixel(x: Int, y: Int) {
 
 object Waves extends SimpleSwingApplication {
 
-  val W: Int = 1024
-  val H: Int = 768
+  var W: Int = 1024
+  var H: Int = 768
 
-  class DataPanel(frame: MainFrame) extends Panel {
+  class WaveContainer(frame: MainFrame) extends Panel {
 
     def updateTitle(): Unit =
       frame.title =
@@ -40,8 +40,14 @@ object Waves extends SimpleSwingApplication {
         .flatten
     }
 
-    val canvas = new BufferedImage(W, H, BufferedImage.TYPE_INT_RGB)
-    val canvasRectangle = new Rectangle2D.Float(0f, 0f, W.toFloat, H.toFloat)
+    var canvas = new BufferedImage(W, H, BufferedImage.TYPE_INT_RGB)
+    var canvasRectangle = new Rectangle2D.Float(0f, 0f, W.toFloat, H.toFloat)
+
+    def newCanvas(): Unit = {
+      canvas.getGraphics.dispose()
+      canvas = new BufferedImage(W, H, BufferedImage.TYPE_INT_RGB)
+      canvasRectangle = new Rectangle2D.Float(0f, 0f, W.toFloat, H.toFloat)
+    }
     val autoResettableKeys: collection.immutable.Set[Key.Value] =
       immutable.HashSet(Key.Space, Key.Q, Key.R, Key.T, Key.D, Key.F, Key.P)
 
@@ -106,7 +112,7 @@ object Waves extends SimpleSwingApplication {
       this.repaint()
     }
 
-    listenTo(keys, mouse.moves)
+    listenTo(keys, mouse.moves, frame)
     focusable = true
     requestFocusInWindow()
 
@@ -114,6 +120,11 @@ object Waves extends SimpleSwingApplication {
       case MouseMoved(_, point, _) => mousePosition = point
       case KeyPressed(_, k, _, _)  => pressedKeys.addOne(k)
       case KeyReleased(_, k, _, _) => pressedKeys.subtractOne(k)
+      case UIElementResized(source) =>
+        W = source.size.width
+        H = source.size.height
+        newCanvas()
+        theMesh = createStarField()
     }
 
     val makeStar: Pixel => List[Pixel] = pixel => {
@@ -176,7 +187,7 @@ object Waves extends SimpleSwingApplication {
               case Key.X     => maxPropagation = maxPropagation + 1
               case Key.P     => pause = !pause
               case Key.O =>
-                if (spacing > 3) {
+                if (spacing > 2) {
                   spacing = spacing - 1
                   theMesh = createStarField()
                 }
@@ -197,7 +208,7 @@ object Waves extends SimpleSwingApplication {
   }
 
   override def top: MainFrame = new MainFrame {
-    contents = new DataPanel(this) {
+    contents = new WaveContainer(this) {
       preferredSize = new Dimension(W, H)
       doRefresh()
     }
