@@ -15,6 +15,11 @@ case class Pixel(x: Int, y: Int) {
   def translate(dX: Int, dY: Int): Pixel = Pixel(this.x + dX, this.y + dY)
 }
 
+// @formatter:off
+case class Configuration(hue: Float, phase: Double, doClear: Boolean, pause: Boolean, spacing: Int, magnitude: Int, maxPropagation: Int, tetherHueToRefresh: Boolean, color: Int, dotDistance: Int, speed: Double)
+object DefaultConfiguration extends Configuration(hue = 1.0f, phase = 0.0d, doClear = true, pause = false, spacing = 10, magnitude = 50, maxPropagation = 300, tetherHueToRefresh = true, color = 0xFF0000, dotDistance = 0, speed = 0.01)
+// @formatter:on
+
 object Waves extends SimpleSwingApplication {
 
   var W: Int = 1024
@@ -34,9 +39,7 @@ object Waves extends SimpleSwingApplication {
       val hCount = (W / spacing) + 1
       val vCount = (H / spacing) + 1
       Array
-        .tabulate(vCount) { yIdx =>
-          Array.tabulate(hCount)(xIdx => Pixel(xIdx * spacing, yIdx * spacing))
-        }
+        .tabulate(vCount)(yIdx => Array.tabulate(hCount)(xIdx => Pixel(xIdx * spacing, yIdx * spacing)))
         .flatten
     }
 
@@ -54,32 +57,32 @@ object Waves extends SimpleSwingApplication {
     var mousePosition: Point = new Point(W / 2, H / 2)
     val pressedKeys: collection.mutable.Set[Key.Value] = mutable.HashSet()
 
-    var hue: Float = 1.0f
-    var phase: Double = 0.0d
-    var doClear: Boolean = true
-    var pause: Boolean = false
-    var spacing: Int = 10
-    var magnitude: Int = 40
-    var maxPropagation: Int = 500
-    var tetherHueToRefresh: Boolean = true
-    var color: Int = 0xFF0000
-    var dotDistance: Int = 0
-    var speed: Double = 0.01
+    var hue: Float = DefaultConfiguration.hue
+    var phase: Double = DefaultConfiguration.phase
+    var doClear: Boolean = DefaultConfiguration.doClear
+    var pause: Boolean = DefaultConfiguration.pause
+    var spacing: Int = DefaultConfiguration.spacing
+    var magnitude: Int = DefaultConfiguration.magnitude
+    var maxPropagation: Int = DefaultConfiguration.maxPropagation
+    var tetherHueToRefresh: Boolean = DefaultConfiguration.tetherHueToRefresh
+    var color: Int = DefaultConfiguration.color
+    var dotDistance: Int = DefaultConfiguration.dotDistance
+    var speed: Double = DefaultConfiguration.speed
 
     var theMesh: Array[Pixel] = createStarField()
 
     def reset(): Unit = {
-      hue = 1.0f
-      phase = 0.0d
-      doClear = true
-      pause = false
-      spacing = 10
-      magnitude = 40
-      maxPropagation = 500
-      tetherHueToRefresh = true
-      color = 0xFF0000
-      dotDistance = 0
-      speed = 0.01
+      hue = DefaultConfiguration.hue
+      phase = DefaultConfiguration.phase
+      doClear = DefaultConfiguration.doClear
+      pause = DefaultConfiguration.pause
+      spacing = DefaultConfiguration.spacing
+      magnitude = DefaultConfiguration.magnitude
+      maxPropagation = DefaultConfiguration.maxPropagation
+      tetherHueToRefresh = DefaultConfiguration.tetherHueToRefresh
+      color = DefaultConfiguration.color
+      dotDistance = DefaultConfiguration.dotDistance
+      speed = DefaultConfiguration.speed
       theMesh = createStarField()
       updateTitle()
       doRefresh()
@@ -148,7 +151,8 @@ object Waves extends SimpleSwingApplication {
       val dy = Math.abs(p.y - my)
       val dist = Math.min(Math.sqrt(dx * dx + dy * dy), maxPropagation)
 
-      val strength: Double = (maxPropagation - dist) / maxPropagation.toDouble
+      val linearStrength: Double = (maxPropagation - dist) / maxPropagation.toDouble
+      val strength: Double = Math.cos(0.5 * Math.PI * (1 - linearStrength))
 
       val r: Double = m * strength
       val adjustedPhase = 1.0 - (a + strength)
