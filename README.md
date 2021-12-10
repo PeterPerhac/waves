@@ -3,6 +3,8 @@
 `sbt run` should launch the window
 
 
+![Animated example](readme/animated.gif)
+
 ## How this works
 
 You mush the buttons and move your mouse around and it produces beautiful pictures. Don't forget to press Space from time to time.
