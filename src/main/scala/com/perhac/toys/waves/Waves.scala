@@ -198,8 +198,8 @@ object Waves extends SimpleSwingApplication {
               case Key.I =>
                 spacing = spacing + 1
                 theMesh = createStarField()
-              case Key.Minus  => speed = speed - 0.001
-              case Key.Equals => speed = speed + 0.001
+              case Key.Minus  => speed = speed - 0.0005
+              case Key.Equals => speed = speed + 0.0005
               case _          => // do nothing
             }
             if (autoResettableKeys.contains(k)) pressedKeys.subtractOne(k)
