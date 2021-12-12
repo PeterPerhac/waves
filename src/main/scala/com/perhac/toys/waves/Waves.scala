@@ -30,10 +30,10 @@ object Waves extends SimpleSwingApplication {
     def updateTitle(): Unit =
       frame.title =
         s"spacing: $spacing, " +
-          s"dot effect level: $dotDistance, " +
           s"magnitude: $magnitude, " +
+          s"max propagation: $maxPropagation, " +
           f"speed: $speed%.3f, " +
-          s"max propagation: $maxPropagation"
+          s"dot effect level: $dotDistance"
 
     private def createStarField(): Array[Pixel] = {
       val hCount = (W / spacing) + 1
@@ -57,17 +57,11 @@ object Waves extends SimpleSwingApplication {
     var mousePosition: Point = new Point(W / 2, H / 2)
     val pressedKeys: collection.mutable.Set[Key.Value] = mutable.HashSet()
 
-    var hue: Float = DefaultConfiguration.hue
-    var phase: Double = DefaultConfiguration.phase
-    var doClear: Boolean = DefaultConfiguration.doClear
-    var pause: Boolean = DefaultConfiguration.pause
-    var spacing: Int = DefaultConfiguration.spacing
-    var magnitude: Int = DefaultConfiguration.magnitude
-    var maxPropagation: Int = DefaultConfiguration.maxPropagation
-    var tetherHueToRefresh: Boolean = DefaultConfiguration.tetherHueToRefresh
-    var color: Int = DefaultConfiguration.color
-    var dotDistance: Int = DefaultConfiguration.dotDistance
-    var speed: Double = DefaultConfiguration.speed
+    var hue: Float = _
+    var phase, speed: Double = _
+    var doClear, pause, tetherHueToRefresh: Boolean = _
+    var spacing, magnitude, maxPropagation, color, dotDistance: Int = _
+    reset() //set the default values for the above variables
 
     var theMesh: Array[Pixel] = createStarField()
 
@@ -83,9 +77,6 @@ object Waves extends SimpleSwingApplication {
       color = DefaultConfiguration.color
       dotDistance = DefaultConfiguration.dotDistance
       speed = DefaultConfiguration.speed
-      theMesh = createStarField()
-      updateTitle()
-      doRefresh()
     }
 
     def newColor(): Unit = color = getHSBColor(hue, 1.0f, 1.0f).getRGB
@@ -149,16 +140,17 @@ object Waves extends SimpleSwingApplication {
     def translatePixel(mx: Int, my: Int, a: Double, m: Int)(p: Pixel): Pixel = {
       val dx = Math.abs(p.x - mx)
       val dy = Math.abs(p.y - my)
-      val dist = Math.min(Math.sqrt(dx * dx + dy * dy), maxPropagation)
+      val dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist >= maxPropagation) { p } else {
+        val linearStrength: Double = (maxPropagation - dist) / maxPropagation.toDouble
+        val strength: Double = Math.cos(0.5 * Math.PI * (1 - linearStrength))
 
-      val linearStrength: Double = (maxPropagation - dist) / maxPropagation.toDouble
-      val strength: Double = Math.cos(0.5 * Math.PI * (1 - linearStrength))
+        val r: Double = m * strength
+        val adjustedPhase = 1.0 - (a + strength)
+        val rad = adjustedPhase * 2 * Math.PI
 
-      val r: Double = m * strength
-      val adjustedPhase = 1.0 - (a + strength)
-      val rad = adjustedPhase * 2 * Math.PI
-
-      p.translate(dX = (r * Math.sin(rad)).toInt, dY = (r * Math.cos(rad)).toInt)
+        p.translate(dX = (r * Math.sin(rad)).toInt, dY = (r * Math.cos(rad)).toInt)
+      }
     }
 
     def plotPoints(): Unit =
@@ -181,7 +173,7 @@ object Waves extends SimpleSwingApplication {
             k match {
               case Key.Space => doClear = !doClear
               case Key.Q     => frame.closeOperation()
-              case Key.R     => reset()
+              case Key.R     => reset(); theMesh = createStarField()
               case Key.T     => tetherHueToRefresh = !tetherHueToRefresh
               case Key.D     => if (dotDistance > 0) dotDistance = dotDistance - 1
               case Key.F     => dotDistance = dotDistance + 1
